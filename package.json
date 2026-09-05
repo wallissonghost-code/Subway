@@ -4,7 +4,7 @@
   "type":"module",
   "scripts":{
     "test:qa":"playwright test",
-    "test:qa:smoke":"playwright test tests/qa/smoke.spec.mjs tests/qa/soak.spec.mjs",
+    "test:qa:smoke":"playwright test tests/qa/smoke.spec.mjs --workers=1",
     "test:qa:soak":"QA_SOAK_MS=1200000 playwright test tests/qa/soak.spec.mjs --workers=1",
     "qa:analyze":"node tests/qa/analyze-report.mjs"
   },
