@@ -28,6 +28,7 @@ export function updateScene(dt){
  camera.position.y=THREE.MathUtils.damp(camera.position.y,5.2+state.y*.28,5,dt);camera.updateProjectionMatrix();renderer.render(scene,camera);
 }
 export function getNearby(){return{obstacles,coins,worldZ:world.position.z,playerX:player.position.x}}
+export function stageObstacleForQA({lane=1,type='block',distance=1.5}={}){const o=obstacles.find(x=>x.type===type)||obstacles[0];if(!o)return false;o.lane=Math.max(0,Math.min(2,lane));o.z=-Math.abs(distance)-world.position.z;o.mesh.position.x=C.laneX[o.lane];o.mesh.position.z=o.z;return true}
 export function getSceneMetrics(){return{frames,lastRenderAt,maxFrameDt,worldZ:world.position.z,track:track.snapshot(world.position.z),renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}}}
 export function resetWorld(){world.position.z=0;track.reset();player.position.x=C.laneX[1];player.rotation.z=0;for(const c of coins){c.taken=false;c.mesh.visible=true}}
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}addEventListener('resize',resize,{passive:true});
