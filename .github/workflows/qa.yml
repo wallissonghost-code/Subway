@@ -1,0 +1,37 @@
+name: Game QA
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: game-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - name: Gameplay QA 30s
+        run: npm run test:qa:smoke
+      - name: Automatic anomaly analysis
+        if: always()
+        run: |
+          if [ -f qa-output/qa-report.json ]; then npm run qa:analyze; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: game-qa-report
+          path: |
+            qa-output/
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
