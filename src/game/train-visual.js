@@ -1,10 +1,19 @@
 import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 import{GLTFLoader}from'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
 
-const MODEL_URL='./assets/trains/trem_not_3d.glb';
+const MODEL_URL='./assets/trains/Meshy_AI_Not_Train_0905225724_texture.glb';
 const TRAIN_W=2.18,TRAIN_H=5.05,TRAIN_D=7.5;
 const MODEL_YAW=Math.PI;
 let templatePromise=null;
+
+function prepareMaterial(material){
+ if(!material)return material;
+ const m=material.clone();
+ if(m.map){m.map.colorSpace=THREE.SRGBColorSpace;m.map.needsUpdate=true}
+ if(m.emissiveMap){m.emissiveMap.colorSpace=THREE.SRGBColorSpace;m.emissiveMap.needsUpdate=true}
+ m.needsUpdate=true;
+ return m;
+}
 
 function prepareModel(scene){
  const root=scene.clone(true);
@@ -12,15 +21,12 @@ function prepareModel(scene){
   if(o.isMesh){
    o.castShadow=true;
    o.receiveShadow=true;
-   if(o.material){
-    o.material=o.material.clone();
-    if(o.material.map)o.material.map.colorSpace=THREE.SRGBColorSpace;
-   }
+   if(Array.isArray(o.material))o.material=o.material.map(prepareMaterial);
+   else if(o.material)o.material=prepareMaterial(o.material);
   }
  });
 
- // Alguns exportadores entregam o trem ao longo do eixo X. Normalizamos o
- // comprimento para o eixo Z usado pela pista antes de calcular a escala.
+ // Normaliza o eixo longitudinal do GLB para o Z da pista.
  let box=new THREE.Box3().setFromObject(root),size=new THREE.Vector3();box.getSize(size);
  if(size.x>size.z*1.2){root.rotation.y=Math.PI/2;box=new THREE.Box3().setFromObject(root);box.getSize(size)}
  root.rotation.y+=MODEL_YAW;
@@ -29,14 +35,11 @@ function prepareModel(scene){
  const byHeight=TRAIN_H/Math.max(.001,size.y);
  const byWidth=TRAIN_W/Math.max(.001,size.x);
  const byDepth=TRAIN_D/Math.max(.001,size.z);
- // Prioriza a altura visual desejada, mas impede o modelo de invadir faixas
- // vizinhas ou ficar mais comprido que a hitbox física.
  const scale=Math.min(byHeight,byWidth*1.08,byDepth*1.08);
  root.scale.multiplyScalar(scale);
 
  box=new THREE.Box3().setFromObject(root);
  const center=new THREE.Vector3();box.getCenter(center);
- // Centro do modelo preso ao eixo da faixa e rodas apoiadas em Y=0.
  root.position.x-=center.x;
  root.position.z-=center.z;
  root.position.y-=box.min.y;
