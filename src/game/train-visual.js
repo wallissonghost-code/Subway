@@ -9,7 +9,9 @@ const CALIBRATION={
  7:{bottom:16,x:0,scale:1.05},8:{bottom:16,x:0,scale:.86}
 };
 const IMAGE_SIZE=444;
-const BASE_SIZE=3.48;
+// Player visual height is ~2.3 units. Train target is roughly 2.0–2.4x that
+// height so it reads as a full-size rail vehicle instead of a small obstacle.
+const BASE_SIZE=5.15;
 const FRONT_Z=3.58;
 const DIAGONAL_START_Z=-24;
 let texturesPromise=null;
