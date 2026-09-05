@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#172554" />
   <title>Rail Rush Live</title>
-  <link rel="stylesheet" href="./styles.css?v=1" />
+  <link rel="stylesheet" href="./styles.css?v=2" />
 </head>
 <body>
   <main id="app" class="app">
@@ -17,47 +17,29 @@
     </header>
 
     <section id="lobby" class="lobby">
-      <div class="brand">
-        <span>LIVE+</span>
-        <h1>RAIL<br>RUSH</h1>
-        <small>ENDLESS CITY</small>
-      </div>
+      <div class="brand"><span>LIVE+</span><h1>RAIL<br>RUSH</h1><small>ENDLESS CITY</small></div>
       <button id="playButton" class="tap-play" type="button">TOQUE PARA JOGAR</button>
       <nav class="bottom-menu" aria-label="Menu principal">
-        <button type="button"><b>★</b><span>MISSÕES</span></button>
-        <button type="button"><b>◆</b><span>PERSONAGEM</span></button>
-        <button type="button"><b>▣</b><span>LOJA</span></button>
-        <button type="button"><b>⚡</b><span>EVENTOS</span></button>
+        <button type="button"><b>★</b><span>MISSÕES</span></button><button type="button"><b>◆</b><span>PERSONAGEM</span></button><button type="button"><b>▣</b><span>LOJA</span></button><button type="button"><b>⚡</b><span>EVENTOS</span></button>
       </nav>
     </section>
 
-    <button id="settingsButton" class="settings-button" type="button" aria-label="Configurações">⚙</button>
-
     <section id="gameOver" class="game-over hidden">
-      <div class="card">
-        <small>FIM DA CORRIDA</small>
-        <h2 id="finalScore">0</h2>
-        <p><span id="finalDistance">0 m</span> · <span id="finalCoins">0 moedas</span></p>
-        <button id="retryButton" type="button">JOGAR NOVAMENTE</button>
-        <button id="homeButton" class="secondary" type="button">VOLTAR AO LOBBY</button>
-      </div>
+      <div class="card"><small>FIM DA CORRIDA</small><h2 id="finalScore">0</h2><p><span id="finalDistance">0 m</span> · <span id="finalCoins">0 moedas</span></p><button id="retryButton" type="button">JOGAR NOVAMENTE</button><button id="homeButton" class="secondary" type="button">VOLTAR AO LOBBY</button></div>
     </section>
 
     <div id="settingsModal" class="modal" aria-hidden="true">
-      <div class="modal-card">
-        <button id="closeSettings" class="close" type="button">×</button>
-        <h2>Configurações</h2>
+      <div class="modal-card pause-card">
+        <button id="closeSettings" class="close" type="button" aria-label="Continuar">×</button>
+        <h2>PAUSADO</h2>
+        <button id="resumeButton" class="resume-button" type="button">▶ CONTINUAR</button>
         <div class="setting-row"><span>Som</span><button id="soundToggle" type="button">LIGADO</button></div>
-        <hr>
-        <h3>Live+</h3>
-        <p class="muted">Conecte este jogo ao painel usando o código ou ticket.</p>
-        <div class="connection-status"><span id="panelDot"></span><strong id="panelStatus">Offline</strong><small id="transportStatus">offline</small></div>
-        <input id="panelCode" autocomplete="off" autocapitalize="characters" placeholder="ABCD-EFGH" />
-        <button id="connectPanel" class="primary" type="button">CONECTAR AO PAINEL</button>
-        <p id="pairMessage" class="pair-message">Aguardando conexão.</p>
-        <div class="live-actions">
-          <small>Ações disponíveis para a Live</small>
-          <div id="actionList"></div>
+        <div class="live-compact">
+          <div class="live-head"><h3>Live+</h3><div class="connection-status"><span id="panelDot"></span><strong id="panelStatus">Offline</strong><small id="transportStatus">offline</small></div></div>
+          <input id="panelCode" autocomplete="off" autocapitalize="characters" placeholder="ABCD-EFGH" />
+          <button id="connectPanel" class="primary" type="button">CONECTAR</button>
+          <p id="pairMessage" class="pair-message">Aguardando conexão.</p>
+          <div class="live-actions"><small>Ações da Live</small><div id="actionList"></div></div>
         </div>
       </div>
     </div>
@@ -66,6 +48,6 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/gh/wallissonghost-code/projeto-daniel@14c423787fc4d65fc01cb94c87d47850bc41d5d5/sdk/liveplus-game-sdk-v1.js"></script>
-  <script type="module" src="./src/main.js?v=1"></script>
+  <script type="module" src="./src/main.js?v=2"></script>
 </body>
 </html>
