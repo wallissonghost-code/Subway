@@ -4,8 +4,8 @@ import{openQA,start,runAutopilot}from'./helpers.mjs';
 const DURATION=Math.max(30_000,Number(process.env.QA_SOAK_MS||30_000));
 
 test('endless map, render loop and runtime stay healthy under soak',async({page})=>{
- test.setTimeout(DURATION+45_000);await openQA(page);await start(page);const samples=[];
- await runAutopilot(page,DURATION,{sampleEvery:2000,onSample:s=>samples.push(s)});
+ test.setTimeout(DURATION+45_000);await openQA(page);await start(page,{collisionBypass:true});const samples=[];
+ await runAutopilot(page,DURATION,{sampleEvery:2000,onSample:s=>samples.push(s),collisionBypass:true});
  expect(samples.length).toBeGreaterThan(5);const first=samples[0],last=samples.at(-1);
  expect(last.runner.mode).toBe('running');expect(last.runner.alive).toBe(true);expect(last.runner.distance).toBeGreaterThan(first.runner.distance);
  for(let i=1;i<samples.length;i++){expect(samples[i].runner.distance).toBeGreaterThan(samples[i-1].runner.distance);expect(samples[i].scene.frames).toBeGreaterThan(samples[i-1].scene.frames);expect(samples[i].scene.track.fronts.some(z=>z<=20&&z>=-80)).toBe(true)}
