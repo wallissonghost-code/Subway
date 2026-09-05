@@ -1,0 +1,33 @@
+name: Game QA Soak 20m
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - name: Gameplay endurance 20 minutes
+        run: npm run test:qa:soak
+      - name: Automatic anomaly analysis
+        if: always()
+        run: |
+          if [ -f qa-output/qa-report.json ]; then npm run qa:analyze; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: game-qa-soak-report
+          path: |
+            qa-output/
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 30
