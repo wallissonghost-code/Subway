@@ -3,6 +3,7 @@ import{GAME_CONFIG as C}from'../config.js';
 import{state}from'./state.js';
 import{createTrackSystem}from'./track.js';
 import{createTrainVisual,setTrainVisualLane,updateTrainVisualPerspective}from'./train-visual.js';
+import{createChaseCamera}from'./camera-controller.js';
 const canvas=document.getElementById('gameCanvas');
 export const scene=new THREE.Scene();scene.background=new THREE.Color(0x79cdf5);scene.fog=new THREE.Fog(0x9ed6ef,25,95);
 export const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,160);camera.position.set(0,5.2,9.5);camera.lookAt(0,1,-8);
@@ -13,6 +14,7 @@ function box(w,h,d,color){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),ma
 export const world=new THREE.Group();scene.add(world);
 const track=createTrackSystem();world.add(track.root);
 const player=new THREE.Group();const torso=box(.82,1.05,.48,0x19a7ce);torso.position.y=1.22;const head=new THREE.Mesh(new THREE.SphereGeometry(.38,18,14),mat(0xf1b27d));head.position.y=1.98;head.castShadow=true;const cap=box(.72,.18,.58,0xef4444);cap.position.set(0,2.28,.02);const legL=box(.25,.7,.28,0x334155),legR=legL.clone();legL.position.set(-.22,.52,0);legR.position.set(.22,.52,0);player.add(torso,head,cap,legL,legR);player.position.set(0,0,0);scene.add(player);
+const chaseCamera=createChaseCamera(camera,player);
 const pursuer=new THREE.Group();const pbody=box(1,1.25,.58,0x243b64);pbody.position.y=1.2;const phead=new THREE.Mesh(new THREE.SphereGeometry(.4,16,12),mat(0xd69a68));phead.position.y=2.05;const dog=box(.9,.55,1.15,0x8b5b36);dog.position.set(1.05,.38,.45);pursuer.add(pbody,phead,dog);pursuer.position.set(0,0,2.7);scene.add(pursuer);
 const obstacleRoot=new THREE.Group();world.add(obstacleRoot);const obstacles=[];
 function makeTrain(lane,z){const group=new THREE.Group();const hitbox=box(1.95,2.8,7.5,0x111111);hitbox.position.y=1.38;hitbox.visible=false;const visual=createTrainVisual(lane,{view:'front'});group.add(hitbox,visual);group.position.set(C.laneX[lane],0,z);obstacleRoot.add(group);obstacles.push({mesh:group,lane,z,type:'block',radius:3.75,trainVisual:visual})}
@@ -25,11 +27,11 @@ export function updateScene(dt){
  if(state.paused){renderer.render(scene,camera);return}
  const targetX=C.laneX[state.targetLane],delta=targetX-player.position.x;player.position.x=THREE.MathUtils.damp(player.position.x,targetX,28,dt);player.rotation.z=THREE.MathUtils.damp(player.rotation.z,THREE.MathUtils.clamp(-delta*.12,-.16,.16),18,dt);player.position.y=state.y;player.scale.y=state.sliding?.62:1;
  const run=state.mode==='running',t=performance.now()*.012;legL.rotation.x=run?Math.sin(t)*.8:0;legR.rotation.x=run?Math.sin(t+Math.PI)*.8:0;
- if(run){world.position.z+=state.speed*dt;track.update(world.position.z);for(const c of coins){c.mesh.rotation.z+=dt*5;const wz=c.z+world.position.z;if(wz>12){c.z-=122.4;c.mesh.position.z=c.z;c.mesh.visible=true;c.taken=false}}for(const o of obstacles){const wz=o.z+world.position.z;if(o.trainVisual)updateTrainVisualPerspective(o.trainVisual,o.lane,wz,'front');if(wz>16){o.z-=100;o.mesh.position.z=o.z;if(o.trainVisual)updateTrainVisualPerspective(o.trainVisual,o.lane,o.z+world.position.z,'front')}}pursuer.position.z=THREE.MathUtils.damp(pursuer.position.z,6.3,1.5,dt);camera.fov=THREE.MathUtils.damp(camera.fov,64+Math.min(8,(state.speed-C.baseSpeed)*.4),4,dt)}else{pursuer.position.z=2.7;camera.fov=THREE.MathUtils.damp(camera.fov,58,4,dt);world.position.z=0}
- camera.position.y=THREE.MathUtils.damp(camera.position.y,5.2+state.y*.28,5,dt);camera.updateProjectionMatrix();renderer.render(scene,camera);
+ if(run){world.position.z+=state.speed*dt;track.update(world.position.z);for(const c of coins){c.mesh.rotation.z+=dt*5;const wz=c.z+world.position.z;if(wz>12){c.z-=122.4;c.mesh.position.z=c.z;c.mesh.visible=true;c.taken=false}}for(const o of obstacles){const wz=o.z+world.position.z;if(o.trainVisual)updateTrainVisualPerspective(o.trainVisual,o.lane,wz,'front');if(wz>16){o.z-=100;o.mesh.position.z=o.z;if(o.trainVisual)updateTrainVisualPerspective(o.trainVisual,o.lane,o.z+world.position.z,'front')}}pursuer.position.z=THREE.MathUtils.damp(pursuer.position.z,6.3,1.5,dt)}else{pursuer.position.z=2.7;world.position.z=0}
+ chaseCamera.update(dt,state);renderer.render(scene,camera);
 }
 export function getNearby(){return{obstacles,coins,worldZ:world.position.z,playerX:player.position.x}}
 export function stageObstacleForQA({lane=1,type='block',distance=1.5}={}){const o=obstacles.find(x=>x.type===type)||obstacles[0];if(!o)return false;o.lane=Math.max(0,Math.min(2,lane));o.z=-Math.abs(distance)-world.position.z;o.mesh.position.x=C.laneX[o.lane];o.mesh.position.z=o.z;if(o.trainVisual)setTrainVisualLane(o.trainVisual,o.lane,'front',o.z+world.position.z);return true}
 export function getSceneMetrics(){return{frames,lastRenderAt,maxFrameDt,worldZ:world.position.z,track:track.snapshot(world.position.z),renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}}}
-export function resetWorld(){world.position.z=0;track.reset();player.position.x=C.laneX[1];player.rotation.z=0;for(const c of coins){c.taken=false;c.mesh.visible=true}}
+export function resetWorld(){world.position.z=0;track.reset();player.position.x=C.laneX[1];player.position.y=0;player.rotation.z=0;chaseCamera.reset();for(const c of coins){c.taken=false;c.mesh.visible=true}}
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}addEventListener('resize',resize,{passive:true});
