@@ -1,0 +1,12 @@
+{
+  "name":"rail-rush-live",
+  "private":true,
+  "type":"module",
+  "scripts":{
+    "test:qa":"playwright test",
+    "test:qa:smoke":"playwright test tests/qa/smoke.spec.mjs tests/qa/soak.spec.mjs",
+    "test:qa:soak":"QA_SOAK_MS=1200000 playwright test tests/qa/soak.spec.mjs --workers=1",
+    "qa:analyze":"node tests/qa/analyze-report.mjs"
+  },
+  "devDependencies":{"@playwright/test":"^1.55.0"}
+}
