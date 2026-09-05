@@ -1,78 +1,36 @@
 import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 import JSZip from'https://esm.sh/jszip@3.10.1';
 
-const FILES={1:'frame_001.png',2:'frame_002.png',3:'frame_003.png',4:'frame_004.png',5:'frame_005.png',6:'frame_006.png',7:'frame_007.png',8:'frame_008.png'};
-const CALIBRATION={
- 1:{bottom:38,x:-.05,scale:.92},2:{bottom:37,x:.05,scale:.92},
- 3:{bottom:66,x:-.03,scale:.88},4:{bottom:57,x:.03,scale:.88},
- 5:{bottom:55,x:-.03,scale:.90},6:{bottom:48,x:.03,scale:.90},
- 7:{bottom:16,x:0,scale:1.05},8:{bottom:16,x:0,scale:.86}
-};
-const IMAGE_SIZE=444;
-// Player visual height is ~2.3 units. Train target is roughly 2.0–2.4x that
-// height so it reads as a full-size rail vehicle instead of a small obstacle.
-const BASE_SIZE=5.15;
-const FRONT_Z=3.58;
-const DIAGONAL_START_Z=-24;
-let texturesPromise=null;
+const FRONT_FILE='frame_007.png';
+const TRAIN_W=2.08,TRAIN_H=5.05,TRAIN_D=7.5;
+const FRONT_SIZE=5.18,IMAGE_SIZE=444,FRONT_BOTTOM=16;
+let texturePromise=null;
 
-async function loadTextures(){
- const res=await fetch('./Trem.zip');
- if(!res.ok)throw new Error(`Trem.zip HTTP ${res.status}`);
- const zip=await JSZip.loadAsync(await res.arrayBuffer());
- const loader=new THREE.TextureLoader();
- const textures={};
- for(const[id,file]of Object.entries(FILES)){
-  const entry=zip.file(file);if(!entry)continue;
-  const blob=await entry.async('blob');const url=URL.createObjectURL(blob);
-  textures[id]=await new Promise((resolve,reject)=>loader.load(url,t=>{t.colorSpace=THREE.SRGBColorSpace;t.minFilter=THREE.LinearFilter;t.magFilter=THREE.LinearFilter;URL.revokeObjectURL(url);resolve(t)},undefined,e=>{URL.revokeObjectURL(url);reject(e)}));
- }
- return textures;
+async function loadFrontTexture(){
+ const res=await fetch('./Trem.zip');if(!res.ok)throw new Error(`Trem.zip HTTP ${res.status}`);
+ const zip=await JSZip.loadAsync(await res.arrayBuffer());const entry=zip.file(FRONT_FILE);if(!entry)throw new Error(`${FRONT_FILE} ausente`);
+ const blob=await entry.async('blob'),url=URL.createObjectURL(blob),loader=new THREE.TextureLoader();
+ return new Promise((resolve,reject)=>loader.load(url,t=>{t.colorSpace=THREE.SRGBColorSpace;t.minFilter=THREE.LinearFilter;t.magFilter=THREE.LinearFilter;URL.revokeObjectURL(url);resolve(t)},undefined,e=>{URL.revokeObjectURL(url);reject(e)}));
 }
-function getTextures(){return texturesPromise??=(loadTextures().catch(e=>{console.warn('[train-visual]',e);return{}}))}
-function frameFor(lane,view='front',worldZ=-100){
- const l=Math.max(0,Math.min(2,lane|0));
- if(view==='front'){
-  // Longe da câmera, a frente reta lê melhor. Quando um trem lateral se
-  // aproxima, usamos o ângulo correspondente para acompanhar a perspectiva.
-  if(worldZ<DIAGONAL_START_Z||l===1)return 7;
-  return l===0?1:2;
- }
- if(view==='rear')return l===0?5:l===2?6:5;
- if(view==='side')return l===0?3:l===2?4:7;
- if(view==='top')return 8;
- return 7;
-}
-function calibrate(mesh,frame){
- const c=CALIBRATION[frame]||CALIBRATION[7];
- const size=BASE_SIZE*c.scale;
- mesh.scale.set(size,size,1);
- mesh.position.x=c.x;
- // O plano é ancorado pela borda inferior; compensamos apenas a margem
- // transparente abaixo das rodas para o trem permanecer apoiado no trilho.
- mesh.position.y=-(c.bottom/IMAGE_SIZE)*size-.015;
- mesh.position.z=FRONT_Z;
-}
-async function applyFrame(mesh,lane,view,worldZ=-100){
- const frame=frameFor(lane,view,worldZ);
- if(mesh.userData.trainFrame===frame&&mesh.material?.map)return;
- mesh.userData.trainFrame=frame;
- const textures=await getTextures(),tex=textures[frame]||textures[7];
- if(!mesh?.material||!tex)return;
- mesh.material.map=tex;mesh.material.needsUpdate=true;calibrate(mesh,frame);mesh.visible=true;
-}
+function getFrontTexture(){return texturePromise??=(loadFrontTexture().catch(e=>{console.warn('[train-visual]',e);return null}))}
+function standard(color,roughness=.72){return new THREE.MeshStandardMaterial({color,roughness,metalness:.08})}
+function box(w,h,d,color){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),standard(color));m.castShadow=true;m.receiveShadow=true;return m}
+
 export function createTrainVisual(lane,{view='front'}={}){
- const material=new THREE.MeshBasicMaterial({transparent:true,alphaTest:.04,depthWrite:true,side:THREE.DoubleSide,toneMapped:false});
- const geometry=new THREE.PlaneGeometry(1,1);geometry.translate(0,.5,0);
- const mesh=new THREE.Mesh(geometry,material);
- mesh.position.set(0,0,FRONT_Z);mesh.renderOrder=1;mesh.visible=false;mesh.userData.trainView=view;mesh.userData.trainLane=lane;mesh.userData.trainFrame=0;
- applyFrame(mesh,lane,view,-100);return mesh;
+ const root=new THREE.Group();root.userData.trainLane=lane;root.userData.trainView=view;
+ const body=box(TRAIN_W,TRAIN_H,TRAIN_D,0xe43f35);body.position.y=TRAIN_H/2;root.add(body);
+ const roof=box(TRAIN_W*1.02,.32,TRAIN_D*.96,0xa8ce34);roof.position.y=TRAIN_H+.08;root.add(roof);
+ const lower=box(TRAIN_W*1.01,.48,TRAIN_D*.98,0x32435d);lower.position.y=.3;root.add(lower);
+ const sideMat=standard(0x1688c9,.5);
+ for(const side of[-1,1])for(let i=0;i<4;i++){const w=new THREE.Mesh(new THREE.PlaneGeometry(.72,.86),sideMat);w.position.set(side*(TRAIN_W/2+.006),3.05,-2.45+i*1.62);w.rotation.y=side>0?-Math.PI/2:Math.PI/2;root.add(w)}
+ const frontMat=new THREE.MeshBasicMaterial({transparent:true,alphaTest:.04,depthWrite:true,side:THREE.DoubleSide,toneMapped:false});
+ const g=new THREE.PlaneGeometry(1,1);g.translate(0,.5,0);const front=new THREE.Mesh(g,frontMat);front.renderOrder=2;front.scale.set(FRONT_SIZE,FRONT_SIZE,1);front.position.set(0,-(FRONT_BOTTOM/IMAGE_SIZE)*FRONT_SIZE-.01,TRAIN_D/2+.035);front.visible=false;root.add(front);root.userData.front=front;
+ getFrontTexture().then(tex=>{if(!tex)return;front.material.map=tex;front.material.needsUpdate=true;front.visible=true});
+ return root;
 }
-export function setTrainVisualLane(mesh,lane,view=mesh?.userData?.trainView||'front',worldZ=-100){
- if(!mesh?.material)return;
- mesh.userData.trainLane=lane;mesh.userData.trainView=view;applyFrame(mesh,lane,view,worldZ);
+
+export function setTrainVisualLane(root,lane,view='front'){
+ if(!root)return;root.userData.trainLane=lane;root.userData.trainView=view;
 }
-export function updateTrainVisualPerspective(mesh,lane,worldZ,view=mesh?.userData?.trainView||'front'){
- if(!mesh?.material)return;
- applyFrame(mesh,lane,view,worldZ);
-}
+export function updateTrainVisualPerspective(){/* fixed 3D train: no frame swapping by distance */}
+export const TRAIN_DIMENSIONS={width:TRAIN_W,height:TRAIN_H,depth:TRAIN_D,roofY:TRAIN_H};
