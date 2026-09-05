@@ -4,6 +4,7 @@ import{GLTFLoader}from'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/l
 const MODEL_URL='./assets/trains/Meshy_AI_Not_Train_0905225724_texture.glb';
 const TRAIN_W=2.18,TRAIN_H=5.05,TRAIN_D=7.5;
 const MODEL_YAW=Math.PI;
+const QA_MODE=new URLSearchParams(location.search).has('qa');
 let templatePromise=null;
 
 function prepareMaterial(material){
@@ -26,7 +27,6 @@ function prepareModel(scene){
   }
  });
 
- // Normaliza o eixo longitudinal do GLB para o Z da pista.
  let box=new THREE.Box3().setFromObject(root),size=new THREE.Vector3();box.getSize(size);
  if(size.x>size.z*1.2){root.rotation.y=Math.PI/2;box=new THREE.Box3().setFromObject(root);box.getSize(size)}
  root.rotation.y+=MODEL_YAW;
@@ -47,6 +47,7 @@ function prepareModel(scene){
 }
 
 function loadTemplate(){
+ if(QA_MODE)return Promise.resolve(null);
  if(templatePromise)return templatePromise;
  templatePromise=new Promise((resolve,reject)=>{
   new GLTFLoader().load(MODEL_URL,gltf=>resolve(prepareModel(gltf.scene)),undefined,reject);
@@ -58,7 +59,8 @@ export function createTrainVisual(lane,{view='front'}={}){
  const holder=new THREE.Group();
  holder.userData.trainLane=lane;
  holder.userData.trainView=view;
- holder.userData.modelReady=false;
+ holder.userData.modelReady=QA_MODE;
+ if(QA_MODE)return holder;
  loadTemplate().then(template=>{
   if(!template)return;
   const model=template.clone(true);
