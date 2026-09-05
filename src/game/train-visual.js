@@ -1,42 +1,76 @@
 import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-import JSZip from'https://esm.sh/jszip@3.10.1';
+import{GLTFLoader}from'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
 
-const FRONT_FILE='frame_007.png';
-// Physical dimensions stay available to scene/collision code, but the bulky
-// colored proxy body is no longer rendered. The PNG is the visible train.
-const TRAIN_W=2.08,TRAIN_H=5.05,TRAIN_D=7.5;
-const FRONT_SIZE=5.18,IMAGE_SIZE=444,FRONT_BOTTOM=16;
-let texturePromise=null;
+const MODEL_URL='./assets/trains/trem_not_3d.glb';
+const TRAIN_W=2.18,TRAIN_H=5.05,TRAIN_D=7.5;
+const MODEL_YAW=Math.PI;
+let templatePromise=null;
 
-async function loadFrontTexture(){
- const res=await fetch('./Trem.zip');if(!res.ok)throw new Error(`Trem.zip HTTP ${res.status}`);
- const zip=await JSZip.loadAsync(await res.arrayBuffer());const entry=zip.file(FRONT_FILE);if(!entry)throw new Error(`${FRONT_FILE} ausente`);
- const blob=await entry.async('blob'),url=URL.createObjectURL(blob),loader=new THREE.TextureLoader();
- return new Promise((resolve,reject)=>loader.load(url,t=>{t.colorSpace=THREE.SRGBColorSpace;t.minFilter=THREE.LinearFilter;t.magFilter=THREE.LinearFilter;URL.revokeObjectURL(url);resolve(t)},undefined,e=>{URL.revokeObjectURL(url);reject(e)}));
-}
-function getFrontTexture(){return texturePromise??=(loadFrontTexture().catch(e=>{console.warn('[train-visual]',e);return null}))}
+function prepareModel(scene){
+ const root=scene.clone(true);
+ root.traverse(o=>{
+  if(o.isMesh){
+   o.castShadow=true;
+   o.receiveShadow=true;
+   if(o.material){
+    o.material=o.material.clone();
+    if(o.material.map)o.material.map.colorSpace=THREE.SRGBColorSpace;
+   }
+  }
+ });
 
-export function createTrainVisual(lane,{view='front'}={}){
- const root=new THREE.Group();root.userData.trainLane=lane;root.userData.trainView=view;
+ // Alguns exportadores entregam o trem ao longo do eixo X. Normalizamos o
+ // comprimento para o eixo Z usado pela pista antes de calcular a escala.
+ let box=new THREE.Box3().setFromObject(root),size=new THREE.Vector3();box.getSize(size);
+ if(size.x>size.z*1.2){root.rotation.y=Math.PI/2;box=new THREE.Box3().setFromObject(root);box.getSize(size)}
+ root.rotation.y+=MODEL_YAW;
 
- const frontMat=new THREE.MeshBasicMaterial({transparent:true,alphaTest:.04,depthWrite:true,side:THREE.DoubleSide,toneMapped:false});
- const g=new THREE.PlaneGeometry(1,1);g.translate(0,.5,0);
- const front=new THREE.Mesh(g,frontMat);
- front.renderOrder=2;
- front.scale.set(FRONT_SIZE,FRONT_SIZE,1);
- // Bottom-anchor the art so the wheels remain on the rail. Keep the visual
- // slightly ahead of the invisible physical body to avoid z-fighting.
- front.position.set(0,-(FRONT_BOTTOM/IMAGE_SIZE)*FRONT_SIZE-.01,TRAIN_D/2+.035);
- front.visible=false;
- root.add(front);
- root.userData.front=front;
+ box=new THREE.Box3().setFromObject(root);box.getSize(size);
+ const byHeight=TRAIN_H/Math.max(.001,size.y);
+ const byWidth=TRAIN_W/Math.max(.001,size.x);
+ const byDepth=TRAIN_D/Math.max(.001,size.z);
+ // Prioriza a altura visual desejada, mas impede o modelo de invadir faixas
+ // vizinhas ou ficar mais comprido que a hitbox física.
+ const scale=Math.min(byHeight,byWidth*1.08,byDepth*1.08);
+ root.scale.multiplyScalar(scale);
 
- getFrontTexture().then(tex=>{if(!tex)return;front.material.map=tex;front.material.needsUpdate=true;front.visible=true});
+ box=new THREE.Box3().setFromObject(root);
+ const center=new THREE.Vector3();box.getCenter(center);
+ // Centro do modelo preso ao eixo da faixa e rodas apoiadas em Y=0.
+ root.position.x-=center.x;
+ root.position.z-=center.z;
+ root.position.y-=box.min.y;
  return root;
 }
 
-export function setTrainVisualLane(root,lane,view='front'){
- if(!root)return;root.userData.trainLane=lane;root.userData.trainView=view;
+function loadTemplate(){
+ if(templatePromise)return templatePromise;
+ templatePromise=new Promise((resolve,reject)=>{
+  new GLTFLoader().load(MODEL_URL,gltf=>resolve(prepareModel(gltf.scene)),undefined,reject);
+ }).catch(e=>{console.error('[train-glb]',e);return null});
+ return templatePromise;
 }
-export function updateTrainVisualPerspective(){/* fixed front art: no distance frame swapping */}
+
+export function createTrainVisual(lane,{view='front'}={}){
+ const holder=new THREE.Group();
+ holder.userData.trainLane=lane;
+ holder.userData.trainView=view;
+ holder.userData.modelReady=false;
+ loadTemplate().then(template=>{
+  if(!template)return;
+  const model=template.clone(true);
+  holder.add(model);
+  holder.userData.model=model;
+  holder.userData.modelReady=true;
+ });
+ return holder;
+}
+
+export function setTrainVisualLane(root,lane,view='front'){
+ if(!root)return;
+ root.userData.trainLane=lane;
+ root.userData.trainView=view;
+}
+
+export function updateTrainVisualPerspective(){/* GLB real: sem troca de frame */}
 export const TRAIN_DIMENSIONS={width:TRAIN_W,height:TRAIN_H,depth:TRAIN_D,roofY:TRAIN_H};
