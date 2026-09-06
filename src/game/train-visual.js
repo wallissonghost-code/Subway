@@ -27,6 +27,8 @@ function prepareModel(scene,variant='normal'){
  const root=scene.clone(true);
  root.traverse(o=>{
   if(o.isMesh){
+   o.visible=true;
+   o.frustumCulled=false;
    o.castShadow=true;
    o.receiveShadow=true;
    if(Array.isArray(o.material))o.material=o.material.map(prepareMaterial);
@@ -50,7 +52,21 @@ function prepareModel(scene,variant='normal'){
  root.position.x-=center.x;
  root.position.z-=center.z;
  root.position.y-=box.min.y;
+ root.updateMatrixWorld(true);
  return root;
+}
+
+function createRampPlaceholder(){
+ const g=new THREE.Group();
+ const bodyMat=new THREE.MeshStandardMaterial({color:0x101820,roughness:.72,metalness:.2});
+ const neonMat=new THREE.MeshStandardMaterial({color:0x5cff73,emissive:0x153d20,emissiveIntensity:.8,roughness:.45});
+ const body=new THREE.Mesh(new THREE.BoxGeometry(2.55,4.55,7.8),bodyMat);body.position.y=2.275;
+ const ramp=new THREE.Mesh(new THREE.BoxGeometry(2.35,.24,4.2),neonMat);ramp.rotation.x=-Math.PI*.16;ramp.position.set(0,1.15,4.2);
+ const roof=new THREE.Mesh(new THREE.BoxGeometry(2.35,.18,4.2),neonMat);roof.position.set(0,4.72,-1.65);
+ g.add(body,ramp,roof);
+ g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+ g.userData.isTrainPlaceholder=true;
+ return g;
 }
 
 function loadTemplate(variant='normal'){
@@ -71,9 +87,14 @@ export function createTrainVisual(lane,{view='front',variant='normal'}={}){
  holder.userData.trainVariant=variant;
  holder.userData.modelReady=QA_MODE;
  if(QA_MODE)return holder;
+
+ const placeholder=variant==='ramp'?createRampPlaceholder():null;
+ if(placeholder)holder.add(placeholder);
+
  loadTemplate(variant).then(template=>{
   if(!template)return;
   const model=template.clone(true);
+  if(placeholder)holder.remove(placeholder);
   holder.add(model);
   holder.userData.model=model;
   holder.userData.modelReady=true;
