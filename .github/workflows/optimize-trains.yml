@@ -1,0 +1,29 @@
+name: Optimize Train GLBs
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install glTF Transform
+        run: npm install --no-save @gltf-transform/cli
+      - name: Optimize conservatively
+        run: |
+          mkdir -p assets/trains/optimized
+          npx gltf-transform optimize assets/trains/Meshy_AI_Not_Train_0905225724_texture.glb assets/trains/optimized/not-train.glb --compress meshopt --texture-compress webp --texture-size 2048
+          npx gltf-transform optimize assets/trains/Meshy_AI_Neon_Velocity_Carrier_0905231253_texture.glb assets/trains/optimized/ramp-train.glb --compress meshopt --texture-compress webp --texture-size 2048
+          ls -lh assets/trains/*.glb assets/trains/optimized/*.glb
+      - name: Commit optimized models
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add assets/trains/optimized
+          git diff --cached --quiet && exit 0
+          git commit -m "optimize train GLBs for mobile"
+          git push
