@@ -1,11 +1,17 @@
 import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 import{GLTFLoader}from'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
 
-const MODEL_URL='./assets/trains/Meshy_AI_Not_Train_0905225724_texture.glb';
-const TRAIN_W=2.18,TRAIN_H=5.05,TRAIN_D=7.5;
+const MODELS={
+ normal:'./assets/trains/Meshy_AI_Not_Train_0905225724_texture.glb',
+ ramp:'./assets/trains/Meshy_AI_Neon_Velocity_Carrier_0905231253_texture.glb'
+};
+const DIMENSIONS={
+ normal:{width:2.72,height:5.7,depth:9.1,roofY:5.7},
+ ramp:{width:2.72,height:5.7,depth:9.6,roofY:5.7}
+};
 const MODEL_YAW=Math.PI;
 const QA_MODE=new URLSearchParams(location.search).has('qa');
-let templatePromise=null;
+const templatePromises=new Map();
 
 function prepareMaterial(material){
  if(!material)return material;
@@ -16,7 +22,8 @@ function prepareMaterial(material){
  return m;
 }
 
-function prepareModel(scene){
+function prepareModel(scene,variant='normal'){
+ const dims=DIMENSIONS[variant]||DIMENSIONS.normal;
  const root=scene.clone(true);
  root.traverse(o=>{
   if(o.isMesh){
@@ -32,9 +39,9 @@ function prepareModel(scene){
  root.rotation.y+=MODEL_YAW;
 
  box=new THREE.Box3().setFromObject(root);box.getSize(size);
- const byHeight=TRAIN_H/Math.max(.001,size.y);
- const byWidth=TRAIN_W/Math.max(.001,size.x);
- const byDepth=TRAIN_D/Math.max(.001,size.z);
+ const byHeight=dims.height/Math.max(.001,size.y);
+ const byWidth=dims.width/Math.max(.001,size.x);
+ const byDepth=dims.depth/Math.max(.001,size.z);
  const scale=Math.min(byHeight,byWidth*1.08,byDepth*1.08);
  root.scale.multiplyScalar(scale);
 
@@ -46,22 +53,25 @@ function prepareModel(scene){
  return root;
 }
 
-function loadTemplate(){
+function loadTemplate(variant='normal'){
  if(QA_MODE)return Promise.resolve(null);
- if(templatePromise)return templatePromise;
- templatePromise=new Promise((resolve,reject)=>{
-  new GLTFLoader().load(MODEL_URL,gltf=>resolve(prepareModel(gltf.scene)),undefined,reject);
- }).catch(e=>{console.error('[train-glb]',e);return null});
- return templatePromise;
+ if(templatePromises.has(variant))return templatePromises.get(variant);
+ const url=MODELS[variant]||MODELS.normal;
+ const promise=new Promise((resolve,reject)=>{
+  new GLTFLoader().load(url,gltf=>resolve(prepareModel(gltf.scene,variant)),undefined,reject);
+ }).catch(e=>{console.error(`[train-glb:${variant}]`,e);return null});
+ templatePromises.set(variant,promise);
+ return promise;
 }
 
-export function createTrainVisual(lane,{view='front'}={}){
+export function createTrainVisual(lane,{view='front',variant='normal'}={}){
  const holder=new THREE.Group();
  holder.userData.trainLane=lane;
  holder.userData.trainView=view;
+ holder.userData.trainVariant=variant;
  holder.userData.modelReady=QA_MODE;
  if(QA_MODE)return holder;
- loadTemplate().then(template=>{
+ loadTemplate(variant).then(template=>{
   if(!template)return;
   const model=template.clone(true);
   holder.add(model);
@@ -78,4 +88,5 @@ export function setTrainVisualLane(root,lane,view='front'){
 }
 
 export function updateTrainVisualPerspective(){/* GLB real: sem troca de frame */}
-export const TRAIN_DIMENSIONS={width:TRAIN_W,height:TRAIN_H,depth:TRAIN_D,roofY:TRAIN_H};
+export const TRAIN_DIMENSIONS=DIMENSIONS.normal;
+export const RAMP_TRAIN_DIMENSIONS=DIMENSIONS.ramp;
