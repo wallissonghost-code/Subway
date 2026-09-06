@@ -54,6 +54,9 @@ function prepareModel(scene,variant='normal'){
  root.position.z-=center.z;
  root.position.y-=box.min.y;
  root.updateMatrixWorld(true);
+ const finalBox=new THREE.Box3().setFromObject(root);
+ root.userData.surfaceY=Math.max(.1,finalBox.max.y);
+ root.userData.actualHeight=root.userData.surfaceY;
  return root;
 }
 
@@ -73,6 +76,8 @@ function createPlaceholder(variant='normal'){
  }
  g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
  g.userData.isTrainPlaceholder=true;
+ const pb=new THREE.Box3().setFromObject(g);
+ g.userData.surfaceY=Math.max(.1,pb.max.y);
  return g;
 }
 
@@ -97,6 +102,7 @@ export function createTrainVisual(lane,{view='front',variant='normal'}={}){
  const placeholder=createPlaceholder(variant);
  holder.add(placeholder);
  holder.userData.placeholder=placeholder;
+ holder.userData.surfaceY=placeholder.userData.surfaceY;
  if(QA_MODE)return holder;
 
  loadTemplate(variant).then(template=>{
@@ -104,6 +110,7 @@ export function createTrainVisual(lane,{view='front',variant='normal'}={}){
   const model=template.clone(true);
   holder.add(model);
   holder.userData.model=model;
+  holder.userData.surfaceY=model.userData.surfaceY||template.userData.surfaceY||holder.userData.surfaceY;
   holder.userData.modelReady=true;
   holder.remove(placeholder);
  }).catch(()=>{holder.userData.loadFailed=true});
@@ -116,10 +123,11 @@ export function setTrainVisualLane(root,lane,view='front'){
  root.userData.trainView=view;
 }
 
+export function getTrainSurfaceY(root,fallback=0){return Math.max(.1,Number(root?.userData?.surfaceY)||fallback||.1)}
 export function getTrainVisualStatus(root){
  if(!root)return{ready:false,failed:true,placeholder:false,meshes:0};
  let meshes=0;root.traverse(o=>{if(o.isMesh&&o.visible)meshes++});
- return{ready:root.userData.modelReady===true,failed:root.userData.loadFailed===true,placeholder:!!root.userData.placeholder?.parent,meshes,variant:root.userData.trainVariant||'normal'};
+ return{ready:root.userData.modelReady===true,failed:root.userData.loadFailed===true,placeholder:!!root.userData.placeholder?.parent,meshes,variant:root.userData.trainVariant||'normal',surfaceY:getTrainSurfaceY(root,0)};
 }
 export function updateTrainVisualPerspective(){/* GLB real: sem troca de frame */}
 export const TRAIN_DIMENSIONS=DIMENSIONS.normal;
