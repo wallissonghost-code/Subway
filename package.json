@@ -5,6 +5,7 @@
   "scripts":{
     "test:qa":"playwright test",
     "test:qa:smoke":"playwright test tests/qa/smoke.spec.mjs --workers=1",
+    "test:qa:assets":"playwright test tests/qa/assets.spec.mjs --workers=1",
     "test:qa:soak":"QA_SOAK_MS=1200000 playwright test tests/qa/soak.spec.mjs --workers=1",
     "qa:analyze":"node tests/qa/analyze-report.mjs"
   },
