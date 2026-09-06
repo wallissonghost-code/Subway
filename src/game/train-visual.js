@@ -9,7 +9,7 @@ const DIMENSIONS={
  normal:{width:2.72,height:5.7,depth:9.1,roofY:5.7},
  ramp:{width:2.72,height:5.7,depth:9.6,roofY:5.7}
 };
-const MODEL_YAW=Math.PI;
+const MODEL_YAW={normal:Math.PI,ramp:0};
 const params=new URLSearchParams(location.search);
 const QA_MODE=params.has('qa')&&!params.has('assets');
 const templatePromises=new Map();
@@ -39,7 +39,7 @@ function prepareModel(scene,variant='normal'){
 
  let box=new THREE.Box3().setFromObject(root),size=new THREE.Vector3();box.getSize(size);
  if(size.x>size.z*1.2){root.rotation.y=Math.PI/2;box=new THREE.Box3().setFromObject(root);box.getSize(size)}
- root.rotation.y+=MODEL_YAW;
+ root.rotation.y+=MODEL_YAW[variant]??MODEL_YAW.normal;
 
  box=new THREE.Box3().setFromObject(root);box.getSize(size);
  const byHeight=dims.height/Math.max(.001,size.y);
@@ -65,8 +65,8 @@ function createPlaceholder(variant='normal'){
  const body=new THREE.Mesh(new THREE.BoxGeometry(d.width*.92,d.height*.8,d.depth*.84),bodyMat);body.position.y=d.height*.4;
  g.add(body);
  if(variant==='ramp'){
-  const ramp=new THREE.Mesh(new THREE.BoxGeometry(d.width*.86,.24,d.depth*.44),accentMat);ramp.rotation.x=-Math.PI*.16;ramp.position.set(0,d.height*.2,d.depth*.43);
-  const roof=new THREE.Mesh(new THREE.BoxGeometry(d.width*.86,.18,d.depth*.42),accentMat);roof.position.set(0,d.height*.83,-d.depth*.17);
+  const ramp=new THREE.Mesh(new THREE.BoxGeometry(d.width*.86,.24,d.depth*.44),accentMat);ramp.rotation.x=-Math.PI*.16;ramp.position.set(0,d.height*.2,-d.depth*.43);
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(d.width*.86,.18,d.depth*.42),accentMat);roof.position.set(0,d.height*.83,d.depth*.17);
   g.add(ramp,roof);
  }else{
   const front=new THREE.Mesh(new THREE.BoxGeometry(d.width*.82,d.height*.6,.18),accentMat);front.position.set(0,d.height*.42,d.depth*.42);g.add(front);
