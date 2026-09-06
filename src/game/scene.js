@@ -17,28 +17,33 @@ const player=new THREE.Group();const torso=box(.82,1.05,.48,0x19a7ce);torso.posi
 const chaseCamera=createChaseCamera(camera,player);
 const pursuer=new THREE.Group();const pbody=box(1,1.25,.58,0x243b64);pbody.position.y=1.2;const phead=new THREE.Mesh(new THREE.SphereGeometry(.4,16,12),mat(0xd69a68));phead.position.y=2.05;const dog=box(.9,.55,1.15,0x8b5b36);dog.position.set(1.05,.38,.45);pursuer.add(pbody,phead,dog);pursuer.position.set(0,0,2.7);scene.add(pursuer);
 const obstacleRoot=new THREE.Group();world.add(obstacleRoot);const obstacles=[];
-function makeTrain(lane,z){const group=new THREE.Group();const hitbox=box(TRAIN_DIMENSIONS.width,TRAIN_DIMENSIONS.height,TRAIN_DIMENSIONS.depth,0x111111);hitbox.position.y=TRAIN_DIMENSIONS.height/2;hitbox.visible=false;const visual=createTrainVisual(lane,{view:'front',variant:'normal'});group.add(hitbox,visual);group.position.set(C.laneX[lane],0,z);obstacleRoot.add(group);obstacles.push({mesh:group,lane,z,initialZ:z,type:'block',radius:TRAIN_DIMENSIONS.depth/2,trainVisual:visual,roofY:TRAIN_DIMENSIONS.roofY})}
+function makeTrain(lane,z){const group=new THREE.Group();const hitbox=box(TRAIN_DIMENSIONS.width,TRAIN_DIMENSIONS.height,TRAIN_DIMENSIONS.depth,0x111111);hitbox.position.y=TRAIN_DIMENSIONS.height/2;hitbox.visible=false;const visual=createTrainVisual(lane,{view:'front',variant:'normal'});group.add(hitbox,visual);group.position.set(C.laneX[lane],0,z);obstacleRoot.add(group);obstacles.push({mesh:group,lane,z,initialZ:z,type:'block',radius:TRAIN_DIMENSIONS.depth/2,trainVisual:visual,roofY:TRAIN_DIMENSIONS.roofY,depth:TRAIN_DIMENSIONS.depth})}
 function makeRampTrain(lane,z){const d=RAMP_TRAIN_DIMENSIONS;const group=new THREE.Group();const hitbox=box(d.width,d.height,d.depth,0x111111);hitbox.position.y=d.height/2;hitbox.visible=false;const visual=createTrainVisual(lane,{view:'front',variant:'ramp'});group.add(hitbox,visual);group.position.set(C.laneX[lane],0,z);obstacleRoot.add(group);obstacles.push({mesh:group,lane,z,initialZ:z,type:'ramp',radius:d.depth/2,trainVisual:visual,roofY:d.roofY,depth:d.depth})}
 function makeBarrier(lane,z){const b=box(1.7,.72,.28,0xef4444);b.position.set(C.laneX[lane],.48,z);obstacleRoot.add(b);obstacles.push({mesh:b,lane,z,initialZ:z,type:'jump',radius:.58})}
-makeTrain(0,-28);makeBarrier(1,-17);makeTrain(2,-43);makeRampTrain(1,-58);makeBarrier(0,-72);makeTrain(1,-88);
+makeTrain(0,-28);makeBarrier(1,-17);makeTrain(2,-43);makeRampTrain(1,-58);makeTrain(1,-67);makeBarrier(0,-79);makeTrain(2,-93);
 const coins=[];for(let i=0;i<36;i++){const lane=i%9<3?0:i%9<6?1:2;const z=-8-i*3.4;const coin=new THREE.Mesh(new THREE.CylinderGeometry(.28,.28,.08,20),new THREE.MeshStandardMaterial({color:0xffcf32,metalness:.45,roughness:.35}));coin.rotation.x=Math.PI/2;coin.position.set(C.laneX[lane],.85,z);coin.castShadow=true;world.add(coin);coins.push({mesh:coin,lane,z,initialZ:z,taken:false})}
 let frames=0,lastRenderAt=performance.now(),maxFrameDt=0,surfaceY=0;
-function rampSurfaceHeight(){
+function supportSurfaceHeight(){
  if(state.mode!=='running')return 0;
+ let best=0;
  for(const o of obstacles){
-  if(o.type!=='ramp'||o.lane!==state.targetLane)continue;
-  const wz=o.z+world.position.z,d=o.depth||RAMP_TRAIN_DIMENSIONS.depth,half=d/2;
-  if(wz<-half||wz>half)return 0;
-  const progress=THREE.MathUtils.clamp((wz+half)/(d*.44),0,1);
-  return o.roofY*progress;
+  if(o.lane!==state.targetLane||!o.roofY)continue;
+  const wz=o.z+world.position.z,d=o.depth||TRAIN_DIMENSIONS.depth,half=d/2;
+  if(wz<-half||wz>half)continue;
+  if(o.type==='ramp'){
+   const progress=THREE.MathUtils.clamp((wz+half)/(d*.44),0,1);
+   best=Math.max(best,o.roofY*progress);
+  }else if(o.type==='block'&&surfaceY>o.roofY*.58){
+   best=Math.max(best,o.roofY);
+  }
  }
- return 0;
+ return best;
 }
 export function updateScene(dt){
  frames++;lastRenderAt=performance.now();maxFrameDt=Math.max(maxFrameDt,dt);
  if(state.paused){renderer.render(scene,camera);return}
  const targetX=C.laneX[state.targetLane],delta=targetX-player.position.x;player.position.x=THREE.MathUtils.damp(player.position.x,targetX,28,dt);player.rotation.z=THREE.MathUtils.damp(player.rotation.z,THREE.MathUtils.clamp(-delta*.12,-.16,.16),18,dt);
- const targetSurface=rampSurfaceHeight();surfaceY=targetSurface>surfaceY?THREE.MathUtils.damp(surfaceY,targetSurface,24,dt):THREE.MathUtils.damp(surfaceY,targetSurface,10,dt);player.position.y=state.y+surfaceY;player.scale.y=state.sliding?.62:1;
+ const targetSurface=supportSurfaceHeight();surfaceY=targetSurface>surfaceY?THREE.MathUtils.damp(surfaceY,targetSurface,24,dt):THREE.MathUtils.damp(surfaceY,targetSurface,7,dt);player.position.y=state.y+surfaceY;player.scale.y=state.sliding?.62:1;
  const run=state.mode==='running',t=performance.now()*.012;legL.rotation.x=run?Math.sin(t)*.8:0;legR.rotation.x=run?Math.sin(t+Math.PI)*.8:0;
  if(run){world.position.z+=state.speed*dt;track.update(world.position.z);for(const c of coins){c.mesh.rotation.z+=dt*5;const wz=c.z+world.position.z;if(wz>12){c.z-=122.4;c.mesh.position.z=c.z;c.mesh.visible=true;c.taken=false}}for(const o of obstacles){const wz=o.z+world.position.z;if(wz>16){o.z-=116;o.mesh.position.z=o.z}}pursuer.position.z=THREE.MathUtils.damp(pursuer.position.z,6.3,1.5,dt)}else{pursuer.position.z=2.7;world.position.z=0;surfaceY=0}
  chaseCamera.update(dt,{...state,y:state.y+surfaceY});renderer.render(scene,camera);
