@@ -10,7 +10,8 @@ const DIMENSIONS={
  ramp:{width:2.72,height:5.7,depth:9.6,roofY:5.7}
 };
 const MODEL_YAW=Math.PI;
-const QA_MODE=new URLSearchParams(location.search).has('qa');
+const params=new URLSearchParams(location.search);
+const QA_MODE=params.has('qa')&&!params.has('assets');
 const templatePromises=new Map();
 
 function prepareMaterial(material){
@@ -56,15 +57,21 @@ function prepareModel(scene,variant='normal'){
  return root;
 }
 
-function createRampPlaceholder(){
+function createPlaceholder(variant='normal'){
+ const d=DIMENSIONS[variant]||DIMENSIONS.normal;
  const g=new THREE.Group();
- const bodyMat=new THREE.MeshStandardMaterial({color:0x101820,roughness:.72,metalness:.2});
- const neonMat=new THREE.MeshStandardMaterial({color:0x5cff73,emissive:0x153d20,emissiveIntensity:.8,roughness:.45});
- const body=new THREE.Mesh(new THREE.BoxGeometry(2.55,4.55,7.8),bodyMat);body.position.y=2.275;
- const ramp=new THREE.Mesh(new THREE.BoxGeometry(2.35,.24,4.2),neonMat);ramp.rotation.x=-Math.PI*.16;ramp.position.set(0,1.15,4.2);
- const roof=new THREE.Mesh(new THREE.BoxGeometry(2.35,.18,4.2),neonMat);roof.position.set(0,4.72,-1.65);
- g.add(body,ramp,roof);
- g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+ const bodyMat=new THREE.MeshStandardMaterial({color:variant==='ramp'?0x101820:0x16202a,roughness:.72,metalness:.2});
+ const accentMat=new THREE.MeshStandardMaterial({color:0x5cff73,emissive:0x153d20,emissiveIntensity:.8,roughness:.45});
+ const body=new THREE.Mesh(new THREE.BoxGeometry(d.width*.92,d.height*.8,d.depth*.84),bodyMat);body.position.y=d.height*.4;
+ g.add(body);
+ if(variant==='ramp'){
+  const ramp=new THREE.Mesh(new THREE.BoxGeometry(d.width*.86,.24,d.depth*.44),accentMat);ramp.rotation.x=-Math.PI*.16;ramp.position.set(0,d.height*.2,d.depth*.43);
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(d.width*.86,.18,d.depth*.42),accentMat);roof.position.set(0,d.height*.83,-d.depth*.17);
+  g.add(ramp,roof);
+ }else{
+  const front=new THREE.Mesh(new THREE.BoxGeometry(d.width*.82,d.height*.6,.18),accentMat);front.position.set(0,d.height*.42,d.depth*.42);g.add(front);
+ }
+ g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
  g.userData.isTrainPlaceholder=true;
  return g;
 }
@@ -86,19 +93,20 @@ export function createTrainVisual(lane,{view='front',variant='normal'}={}){
  holder.userData.trainView=view;
  holder.userData.trainVariant=variant;
  holder.userData.modelReady=QA_MODE;
+ holder.userData.loadFailed=false;
+ const placeholder=createPlaceholder(variant);
+ holder.add(placeholder);
+ holder.userData.placeholder=placeholder;
  if(QA_MODE)return holder;
 
- const placeholder=variant==='ramp'?createRampPlaceholder():null;
- if(placeholder)holder.add(placeholder);
-
  loadTemplate(variant).then(template=>{
-  if(!template)return;
+  if(!template){holder.userData.loadFailed=true;return}
   const model=template.clone(true);
-  if(placeholder)holder.remove(placeholder);
   holder.add(model);
   holder.userData.model=model;
   holder.userData.modelReady=true;
- });
+  holder.remove(placeholder);
+ }).catch(()=>{holder.userData.loadFailed=true});
  return holder;
 }
 
@@ -108,6 +116,11 @@ export function setTrainVisualLane(root,lane,view='front'){
  root.userData.trainView=view;
 }
 
+export function getTrainVisualStatus(root){
+ if(!root)return{ready:false,failed:true,placeholder:false,meshes:0};
+ let meshes=0;root.traverse(o=>{if(o.isMesh&&o.visible)meshes++});
+ return{ready:root.userData.modelReady===true,failed:root.userData.loadFailed===true,placeholder:!!root.userData.placeholder?.parent,meshes,variant:root.userData.trainVariant||'normal'};
+}
 export function updateTrainVisualPerspective(){/* GLB real: sem troca de frame */}
 export const TRAIN_DIMENSIONS=DIMENSIONS.normal;
 export const RAMP_TRAIN_DIMENSIONS=DIMENSIONS.ramp;
