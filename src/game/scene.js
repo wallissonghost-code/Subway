@@ -2,7 +2,7 @@ import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.modu
 import{GAME_CONFIG as C}from'../config.js';
 import{state}from'./state.js';
 import{createTrackSystem}from'./track.js';
-import{createTrainVisual,setTrainVisualLane,getTrainVisualStatus,TRAIN_DIMENSIONS,RAMP_TRAIN_DIMENSIONS}from'./train-visual.js';
+import{createTrainVisual,setTrainVisualLane,getTrainVisualStatus,getTrainSurfaceY,TRAIN_DIMENSIONS,RAMP_TRAIN_DIMENSIONS}from'./train-visual.js';
 import{createChaseCamera}from'./camera-controller.js';
 const canvas=document.getElementById('gameCanvas');
 export const scene=new THREE.Scene();scene.background=new THREE.Color(0x79cdf5);scene.fog=new THREE.Fog(0x9ed6ef,25,95);
@@ -30,12 +30,13 @@ function supportSurfaceHeight(){
   if(o.lane!==state.targetLane||!o.roofY)continue;
   const wz=o.z+world.position.z,d=o.depth||TRAIN_DIMENSIONS.depth,half=d/2;
   if(wz<-half||wz>half)continue;
+  const roofY=getTrainSurfaceY(o.trainVisual,o.roofY);
   if(o.type==='ramp'){
    const rampLen=d*.58;
    const progress=THREE.MathUtils.clamp((wz+half)/rampLen,0,1);
-   best=Math.max(best,o.roofY*progress);
-  }else if(o.type==='block'){
-   best=Math.max(best,o.roofY);
+   best=Math.max(best,roofY*progress);
+  }else if(o.type==='block'&&surfaceY>=roofY*.72){
+   best=Math.max(best,roofY);
   }
  }
  return best;
@@ -45,8 +46,11 @@ export function updateScene(dt){
  if(state.paused){renderer.render(scene,camera);return}
  const targetX=C.laneX[state.targetLane],delta=targetX-player.position.x;player.position.x=THREE.MathUtils.damp(player.position.x,targetX,28,dt);player.rotation.z=THREE.MathUtils.damp(player.rotation.z,THREE.MathUtils.clamp(-delta*.12,-.16,.16),18,dt);
  const targetSurface=supportSurfaceHeight();
- if(targetSurface>0)surfaceY=THREE.MathUtils.damp(surfaceY,targetSurface,28,dt);
- else if(state.y<=.05)surfaceY=0;
+ if(targetSurface>0){
+  const maxRise=8*dt;
+  const desired=Math.min(targetSurface,surfaceY+maxRise);
+  surfaceY=THREE.MathUtils.damp(surfaceY,desired,22,dt);
+ }else if(state.y<=.05)surfaceY=0;
  else surfaceY=THREE.MathUtils.damp(surfaceY,0,18,dt);
  player.position.y=state.y+surfaceY;player.scale.y=state.sliding?.62:1;
  const run=state.mode==='running',t=performance.now()*.012;legL.rotation.x=run?Math.sin(t)*.8:0;legR.rotation.x=run?Math.sin(t+Math.PI)*.8:0;
