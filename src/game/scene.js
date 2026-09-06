@@ -35,7 +35,7 @@ function supportSurfaceHeight(){
    const rampLen=d*.58;
    const progress=THREE.MathUtils.clamp((wz+half)/rampLen,0,1);
    best=Math.max(best,roofY*progress);
-  }else if(o.type==='block'&&surfaceY>=roofY*.72){
+  }else if(o.type==='block'&&surfaceY>=Math.min(1.15,roofY*.28)){
    best=Math.max(best,roofY);
   }
  }
@@ -47,9 +47,9 @@ export function updateScene(dt){
  const targetX=C.laneX[state.targetLane],delta=targetX-player.position.x;player.position.x=THREE.MathUtils.damp(player.position.x,targetX,28,dt);player.rotation.z=THREE.MathUtils.damp(player.rotation.z,THREE.MathUtils.clamp(-delta*.12,-.16,.16),18,dt);
  const targetSurface=supportSurfaceHeight();
  if(targetSurface>0){
-  const maxRise=8*dt;
+  const maxRise=12*dt;
   const desired=Math.min(targetSurface,surfaceY+maxRise);
-  surfaceY=THREE.MathUtils.damp(surfaceY,desired,22,dt);
+  surfaceY=THREE.MathUtils.damp(surfaceY,desired,26,dt);
  }else if(state.y<=.05)surfaceY=0;
  else surfaceY=THREE.MathUtils.damp(surfaceY,0,18,dt);
  player.position.y=state.y+surfaceY;player.scale.y=state.sliding?.62:1;
