@@ -31,9 +31,10 @@ function supportSurfaceHeight(){
   const wz=o.z+world.position.z,d=o.depth||TRAIN_DIMENSIONS.depth,half=d/2;
   if(wz<-half||wz>half)continue;
   if(o.type==='ramp'){
-   const progress=THREE.MathUtils.clamp((wz+half)/(d*.44),0,1);
+   const rampLen=d*.58;
+   const progress=THREE.MathUtils.clamp((wz+half)/rampLen,0,1);
    best=Math.max(best,o.roofY*progress);
-  }else if(o.type==='block'&&surfaceY>o.roofY*.58){
+  }else if(o.type==='block'){
    best=Math.max(best,o.roofY);
   }
  }
@@ -43,7 +44,11 @@ export function updateScene(dt){
  frames++;lastRenderAt=performance.now();maxFrameDt=Math.max(maxFrameDt,dt);
  if(state.paused){renderer.render(scene,camera);return}
  const targetX=C.laneX[state.targetLane],delta=targetX-player.position.x;player.position.x=THREE.MathUtils.damp(player.position.x,targetX,28,dt);player.rotation.z=THREE.MathUtils.damp(player.rotation.z,THREE.MathUtils.clamp(-delta*.12,-.16,.16),18,dt);
- const targetSurface=supportSurfaceHeight();surfaceY=targetSurface>surfaceY?THREE.MathUtils.damp(surfaceY,targetSurface,24,dt):THREE.MathUtils.damp(surfaceY,targetSurface,7,dt);player.position.y=state.y+surfaceY;player.scale.y=state.sliding?.62:1;
+ const targetSurface=supportSurfaceHeight();
+ if(targetSurface>0)surfaceY=THREE.MathUtils.damp(surfaceY,targetSurface,28,dt);
+ else if(state.y<=.05)surfaceY=0;
+ else surfaceY=THREE.MathUtils.damp(surfaceY,0,18,dt);
+ player.position.y=state.y+surfaceY;player.scale.y=state.sliding?.62:1;
  const run=state.mode==='running',t=performance.now()*.012;legL.rotation.x=run?Math.sin(t)*.8:0;legR.rotation.x=run?Math.sin(t+Math.PI)*.8:0;
  if(run){world.position.z+=state.speed*dt;track.update(world.position.z);for(const c of coins){c.mesh.rotation.z+=dt*5;const wz=c.z+world.position.z;if(wz>12){c.z-=122.4;c.mesh.position.z=c.z;c.mesh.visible=true;c.taken=false}}for(const o of obstacles){const wz=o.z+world.position.z;if(wz>16){o.z-=116;o.mesh.position.z=o.z}}pursuer.position.z=THREE.MathUtils.damp(pursuer.position.z,6.3,1.5,dt)}else{pursuer.position.z=2.7;world.position.z=0;surfaceY=0}
  chaseCamera.update(dt,{...state,y:state.y+surfaceY});renderer.render(scene,camera);
