@@ -6,8 +6,8 @@ const MODELS={
  ramp:'./assets/trains/Meshy_AI_Neon_Velocity_Carrier_0905231253_texture.glb'
 };
 const DIMENSIONS={
- normal:{width:2.72,height:5.7,depth:9.1,roofY:5.7},
- ramp:{width:2.72,height:5.7,depth:9.6,roofY:5.7}
+ normal:{width:3.15,height:6.25,depth:10.2,roofY:6.25},
+ ramp:{width:3.15,height:6.25,depth:10.6,roofY:6.25}
 };
 const MODEL_YAW={normal:Math.PI,ramp:0};
 const params=new URLSearchParams(location.search);
