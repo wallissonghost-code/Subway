@@ -20,6 +20,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Gameplay QA 30s
         run: npm run test:qa:smoke
+      - name: Train skin visibility bot
+        run: npm run test:qa:assets
       - name: Automatic anomaly analysis
         if: always()
         run: |
