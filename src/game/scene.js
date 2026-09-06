@@ -2,7 +2,7 @@ import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.modu
 import{GAME_CONFIG as C}from'../config.js';
 import{state}from'./state.js';
 import{createTrackSystem}from'./track.js';
-import{createTrainVisual,setTrainVisualLane,TRAIN_DIMENSIONS,RAMP_TRAIN_DIMENSIONS}from'./train-visual.js';
+import{createTrainVisual,setTrainVisualLane,getTrainVisualStatus,TRAIN_DIMENSIONS,RAMP_TRAIN_DIMENSIONS}from'./train-visual.js';
 import{createChaseCamera}from'./camera-controller.js';
 const canvas=document.getElementById('gameCanvas');
 export const scene=new THREE.Scene();scene.background=new THREE.Color(0x79cdf5);scene.fog=new THREE.Fog(0x9ed6ef,25,95);
@@ -50,6 +50,6 @@ export function updateScene(dt){
 }
 export function getNearby(){return{obstacles,coins,worldZ:world.position.z,playerX:player.position.x,surfaceY}}
 export function stageObstacleForQA({lane=1,type='block',distance=1.5}={}){const o=obstacles.find(x=>x.type===type)||obstacles[0];if(!o)return false;o.lane=Math.max(0,Math.min(2,lane));o.z=-Math.abs(distance)-world.position.z;o.mesh.position.x=C.laneX[o.lane];o.mesh.position.z=o.z;if(o.trainVisual)setTrainVisualLane(o.trainVisual,o.lane,'front');return true}
-export function getSceneMetrics(){return{frames,lastRenderAt,maxFrameDt,worldZ:world.position.z,surfaceY,track:track.snapshot(world.position.z),renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}}}
+export function getSceneMetrics(){const trains=obstacles.filter(o=>o.trainVisual).map(o=>getTrainVisualStatus(o.trainVisual));return{frames,lastRenderAt,maxFrameDt,worldZ:world.position.z,surfaceY,trains,track:track.snapshot(world.position.z),renderer:{calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}}}
 export function resetWorld(){world.position.z=0;surfaceY=0;track.reset();player.position.x=C.laneX[1];player.position.y=0;player.rotation.z=0;chaseCamera.reset();for(const o of obstacles){o.z=o.initialZ;o.mesh.position.z=o.initialZ;o.mesh.position.x=C.laneX[o.lane];if(o.trainVisual)setTrainVisualLane(o.trainVisual,o.lane,'front')}for(const c of coins){c.z=c.initialZ;c.mesh.position.z=c.initialZ;c.taken=false;c.mesh.visible=true}}
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}addEventListener('resize',resize,{passive:true});
